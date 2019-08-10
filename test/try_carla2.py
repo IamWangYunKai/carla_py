@@ -20,11 +20,11 @@ actor_list = []
 def set_weather(world):
         # change weather
     weather = carla.WeatherParameters( 
-                cloudyness=30.0, #云量
-                precipitation=10, #降水
-                precipitation_deposits=10, #降水沉积物
+                cloudyness=20.0, #云量
+                precipitation=0, #降水
+                precipitation_deposits=0, #降水沉积物
                 wind_intensity=10, #风力强度
-                sun_azimuth_angle=20, #太阳方位角
+                sun_azimuth_angle=80, #太阳方位角
                 sun_altitude_angle=80.0 #太阳高度角
             ) 
     
@@ -32,7 +32,7 @@ def set_weather(world):
     return weather
     
 def add_vehicle_component(world, blueprint_library):
-    bp = random.choice(blueprint_library.filter('vehicle'))
+    bp = random.choice(blueprint_library.filter('vehicle.bmw.grandtourer'))
     if bp.has_attribute('color'):
         color = random.choice(bp.get_attribute('color').recommended_values)
         bp.set_attribute('color', color)
@@ -46,7 +46,7 @@ def add_vehicle_component(world, blueprint_library):
 def main():
     global actor_list
     client = carla.Client(host, port)
-    client.set_timeout(10.0)
+    client.set_timeout(5.0)
     
     try:
         world = client.get_world()
@@ -55,7 +55,7 @@ def main():
         import sys
         sys.exit()
     
-    #set_weather(world)
+    set_weather(world)
     
     try:
         blueprint_library = world.get_blueprint_library()
@@ -66,25 +66,38 @@ def main():
         vehicle.set_autopilot(True)
         
         map = world.get_map()
+        spawn_points = map.get_spawn_points()
+        destination = spawn_points[random.randint(0,len(spawn_points)-1)].location
         
-        destination = carla.Location(x=6.07782, y=-105.429, z=-0.035137)
-        
-        agent = BasicAgent(vehicle)
-        agent.set_destination([destination.x, destination.y, destination.z])
+        agent = BasicAgent(vehicle, target_speed=20)
+        agent.set_destination((destination.x,
+                               destination.y,
+                               destination.z))
         
         dao = GlobalRoutePlannerDAO(map)
         planner = GlobalRoutePlanner(dao)
         planner.setup()
         
-        for _ in range(500):
+        while True:
             control = agent.run_step()
             vehicle.apply_control(control)
             
-            origin = vehicle.get_location()
-            turn_list = planner.abstract_route_plan(origin, destination)
-            print('next cmd:',turn_list[0])
-            
-            sleep(0.01)
+            my_location = vehicle.get_location()
+            me2destination = my_location.distance(destination)
+            if me2destination < 10 :
+                destination = spawn_points[random.randint(0,len(spawn_points)-1)].location
+                agent.set_destination((destination.x,
+                                       destination.y,
+                                       destination.z))
+                print("destination change !!!")
+
+            #trace_list = planner.trace_route(my_location, destination)
+            trace_list = agent._local_planner._waypoints_queue
+            for (waypoint, road_option) in [trace_list[-1], trace_list[-2], trace_list[-3], trace_list[-4]]:
+                world.debug.draw_string(waypoint.transform.location, 'O', draw_shadow=False,
+                                                   color=carla.Color(r=255, g=0, b=0), life_time=1.0,
+                                                   persistent_lines=True)
+
         
     finally:
         print('destroying actors')
