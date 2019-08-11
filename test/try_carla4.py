@@ -18,15 +18,7 @@ from agents.navigation.basic_agent import BasicAgent
 host = "localhost"
 port = 2000
 actor_list = []
-flag = False
-frame = 0
 
-def deal_image(image):
-    global flag, frame
-    image.save_to_disk('_output/%06d.png' % image.frame_number)
-    flag = True
-    frame = image.frame_number
-    
 def add_camera_component(world, blueprint_library, vehicle):
     global actor_list
     # add camera
@@ -42,48 +34,18 @@ def add_camera_component(world, blueprint_library, vehicle):
     camera = world.spawn_actor(camera_bp, camera_transform, attach_to=vehicle)
     actor_list.append(camera)
     print('created %s' % camera.type_id)
-    camera.listen(lambda image: deal_image(image))
+    camera.listen(lambda image: image.save_to_disk('_output/%06d.png' % image.frame_number))
     return camera
 
-def get_instruct(waypoints):
-    global frame
-    x = []
-    y = []
-    #theta = waypoints[0].transform.rotation.roll
-    theta = math.atan2((waypoints[3].transform.location.y - waypoints[0].transform.location.y),
-                       (waypoints[3].transform.location.x - waypoints[0].transform.location.x))
-    for i in range(min(len(waypoints)-1, 50)):
-        _x = waypoints[i].transform.location.x - waypoints[0].transform.location.x
-        _y = waypoints[i].transform.location.y - waypoints[0].transform.location.y
-        
-        new_theta = math.pi/2-theta
-
-        x_ = _x*math.cos(new_theta) - _y*math.sin(new_theta)
-        y_ = _y*math.cos(new_theta) + _x*math.sin(new_theta)
-        
-        x.append(-x_)
-        y.append(y_)
-    
-    scale = 30
-    fig = plt.figure(figsize=(8,4))
-    plt.xlim(-scale, scale)
-    plt.ylim(0, scale)
-    plt.axis('off')
-
-    plt.plot(x,y,"r-",linewidth=50)
-    #plt.show()
-    fig.savefig('_output/'+str(frame+1)+'.png', bbox_inches='tight', dpi=400)
-    plt.close(fig)
-            
 def set_weather(world):
         # change weather
     weather = carla.WeatherParameters( 
-                cloudyness=0, #云量
+                cloudyness=20.0, #云量
                 precipitation=0, #降水
                 precipitation_deposits=0, #降水沉积物
-                wind_intensity=0, #风力强度
-                sun_azimuth_angle=90, #太阳方位角
-                sun_altitude_angle=90.0 #太阳高度角
+                wind_intensity=10, #风力强度
+                sun_azimuth_angle=80, #太阳方位角
+                sun_altitude_angle=80.0 #太阳高度角
             ) 
     
     world.set_weather(weather)
@@ -102,7 +64,7 @@ def add_vehicle_component(world, blueprint_library):
     return vehicle
         
 def main():
-    global actor_list, flag, frame
+    global actor_list
     client = carla.Client(host, port)
     client.set_timeout(5.0)
     
@@ -148,8 +110,7 @@ def main():
             waypoints.append(waypoint)
         next_point = waypoints[0].transform
         
-        camera = add_camera_component(world, blueprint_library, vehicle)
-        camera.stop()
+        #add_camera_component(world, blueprint_library, vehicle)
         
         while True:
             vehicle.set_transform(next_point)
@@ -173,34 +134,31 @@ def main():
                 print('me2destination:', me2destination)
                 
             next_point = waypoints[random.randint(0,min(len(waypoints)-1, 50))].transform
+                
+            x = []
+            y = []
+            #theta = waypoints[0].transform.rotation.roll
+            theta = math.atan2((waypoints[3].transform.location.y - waypoints[0].transform.location.y),
+                               (waypoints[3].transform.location.x - waypoints[0].transform.location.x))
+            for i in range(min(len(waypoints)-1, 50)):
+                _x = waypoints[i].transform.location.x - waypoints[0].transform.location.x
+                _y = waypoints[i].transform.location.y - waypoints[0].transform.location.y
+                
+                new_theta = math.pi/2-theta
+
+                x_ = _x*math.cos(new_theta) - _y*math.sin(new_theta)
+                y_ = _y*math.cos(new_theta) + _x*math.sin(new_theta)
+                
+                x.append(x_)
+                y.append(y_)
             
-            camera.listen(lambda image: deal_image(image))
-            while not flag:
-                sleep(0.01)
-            camera.stop()
-            flag = False
-            
-            get_instruct(waypoints)
-            
-            for waypoint in waypoints[0:min(len(waypoints)-1, 30)]:
-                box_point = carla.Location(waypoint.transform.location.x,
-                                           waypoint.transform.location.y,
-                                           waypoint.transform.location.z-0.4
-                                           )
-                box = carla.BoundingBox(box_point, carla.Vector3D(x=2,y=0.1,z=0.5))
-                rotation = carla.Rotation(pitch=waypoint.transform.rotation.pitch, 
-                                          yaw=waypoint.transform.rotation.yaw, 
-                                          roll=waypoint.transform.rotation.roll)
-                world.debug.draw_box(box=box, rotation=rotation, thickness=1.2, life_time=0)
-            
+            scale = 10
+            plt.figure(figsize=(8,4))
+            plt.xlim(-scale, scale)
+            plt.ylim(0, scale)
+            plt.plot(x,y,"r-",linewidth=50)
+            plt.show()
             sleep(0.3)
-            camera.listen(lambda image: deal_image(image))
-            while not flag:
-                sleep(0.01)
-            camera.stop()
-            flag = False
-            
-            sleep(1.0)
         
     finally:
         print('destroying actors')
