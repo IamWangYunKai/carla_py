@@ -12,8 +12,8 @@ from agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
 from agents.navigation.global_route_planner import GlobalRoutePlanner
 from agents.navigation.basic_agent import BasicAgent
 
-host = "210.32.144.24"
-#host = "localhost"
+#host = "210.32.144.24"
+host = "localhost"
 port = 2000
 actor_list = []
 
@@ -63,7 +63,7 @@ def main():
         # add vehicle
         vehicle = add_vehicle_component(world, blueprint_library)
         # put the vehicle to drive around.
-        vehicle.set_autopilot(True)
+        #vehicle.set_autopilot(True)
         
         map = world.get_map()
         spawn_points = map.get_spawn_points()
@@ -78,9 +78,41 @@ def main():
         planner = GlobalRoutePlanner(dao)
         planner.setup()
         
+        vehicle.set_simulate_physics(False)
+        
+        my_location = vehicle.get_location()
+        trace_list = planner.trace_route(my_location, destination)
+        waypoints = []
+        for (waypoint, road_option) in trace_list:
+            waypoints.append(waypoint)
+        
+        while True:
+            #my_location = vehicle.get_location()
+            me2destination = my_location.distance(destination)
+            if me2destination < 20 :
+                destination = spawn_points[random.randint(0,len(spawn_points)-1)].location
+                #agent.set_destination((destination.x,destination.y,destination.z))
+                print("destination change !!!")
+                
+            trace_list = planner.trace_route(my_location, destination)
+            waypoints = []
+            for (waypoint, road_option) in trace_list:
+                waypoints.append(waypoint)
+            
+            for waypoint in waypoints[0:30]:
+                world.debug.draw_string(waypoint.transform.location, 'O', draw_shadow=False,
+                                       color=carla.Color(r=255, g=0, b=0), life_time=1.0,
+                                       persistent_lines=True)
+            
+            next_point = waypoints[random.randint(0,min(len(waypoints)-1, 50))].transform
+            vehicle.set_transform(next_point)
+            my_location = next_point.location
+            #sleep(0.1)
+
+        """
         while True:
             control = agent.run_step()
-            vehicle.apply_control(control)
+            #vehicle.apply_control(control)
             
             my_location = vehicle.get_location()
             me2destination = my_location.distance(destination)
@@ -91,20 +123,56 @@ def main():
                                        destination.z))
                 print("destination change !!!")
 
-            #trace_list = planner.trace_route(my_location, destination)
-            trace_list = agent._local_planner._waypoints_queue
+            trace_list = planner.trace_route(my_location, destination)
+            if len(trace_list) < 4:
+                continue
             for (waypoint, road_option) in [trace_list[-1], trace_list[-2], trace_list[-3], trace_list[-4]]:
                 world.debug.draw_string(waypoint.transform.location, 'O', draw_shadow=False,
                                                    color=carla.Color(r=255, g=0, b=0), life_time=1.0,
                                                    persistent_lines=True)
+                
+            (waypoint, road_option) = trace_list[-1]
+            vehicle.set_transform(waypoint.transform)
+            sleep(0.5)
 
+            waypoints = agent._local_planner._waypoint_buffer
+            for waypoint in [waypoints[-1], waypoints[-2], waypoints[-3], waypoints[-4]]:
+                world.debug.draw_string(waypoint.transform.location, 'O', draw_shadow=False,
+                                        color=carla.Color(r=255, g=0, b=0), life_time=1.0,
+                                        persistent_lines=True)
+            
+            """
+                
+        """
+        # Retrieve the closest waypoint.
+        waypoint = map.get_waypoint(vehicle.get_location())
+        
+        # Disable physics, in this example we're just teleporting the vehicle.
+        vehicle.set_simulate_physics(False)
+        
+        while True:
+            # Find next waypoint 2 meters ahead.
+            waypoint = map.get_waypoint(vehicle.get_location())
+            waypoints = waypoint.next(1.0)
+            print(len(waypoints))
+            for waypoint in waypoints:
+                world.debug.draw_string(waypoint.transform.location, 'O', draw_shadow=False,
+                                        color=carla.Color(r=255, g=0, b=0), life_time=1.0,
+                                        persistent_lines=True)
+            # Teleport the vehicle.
+            vehicle.set_transform(waypoint.transform)
+            sleep(1)
+        """
         
     finally:
+        pass
+        """
         print('destroying actors')
         for actor in actor_list:
             actor.destroy()
         actor_list = []
         print('done.')
+        """
         
 if __name__ == '__main__':
     main()
