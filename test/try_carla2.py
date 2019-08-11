@@ -17,6 +17,24 @@ host = "localhost"
 port = 2000
 actor_list = []
 
+def add_camera_component(world, blueprint_library, vehicle):
+    global actor_list
+    # add camera
+    camera_bp = blueprint_library.find('sensor.camera.rgb')
+    # Modify the attributes of the blueprint to set image resolution and field of view.
+    camera_bp.set_attribute('image_size_x', '800')
+    camera_bp.set_attribute('image_size_y', '600')
+    camera_bp.set_attribute('fov', '90') #视角度数
+    # Set the time in seconds between sensor captures
+    camera_bp.set_attribute('sensor_tick', '0.3')
+    
+    camera_transform = carla.Transform(carla.Location(x=1.5, z=2.0))
+    camera = world.spawn_actor(camera_bp, camera_transform, attach_to=vehicle)
+    actor_list.append(camera)
+    print('created %s' % camera.type_id)
+    camera.listen(lambda image: image.save_to_disk('_output/%06d.png' % image.frame_number))
+    return camera
+
 def set_weather(world):
         # change weather
     weather = carla.WeatherParameters( 
@@ -56,6 +74,8 @@ def main():
         sys.exit()
     
     set_weather(world)
+    #carla.TrafficLight.set_green_time(float(999))
+    #carla.TrafficLight.set_red_time(0)
     
     try:
         blueprint_library = world.get_blueprint_library()
@@ -83,10 +103,14 @@ def main():
         my_location = vehicle.get_location()
         trace_list = planner.trace_route(my_location, destination)
         waypoints = []
+        
         for (waypoint, road_option) in trace_list:
             waypoints.append(waypoint)
-        
+        next_point = waypoints[0].transform
+        add_camera_component(world, blueprint_library, vehicle)
         while True:
+            vehicle.set_transform(next_point)
+            my_location = next_point.location
             #my_location = vehicle.get_location()
             me2destination = my_location.distance(destination)
             if me2destination < 20 :
@@ -98,81 +122,39 @@ def main():
             waypoints = []
             for (waypoint, road_option) in trace_list:
                 waypoints.append(waypoint)
-            
+            """
             for waypoint in waypoints[0:30]:
                 world.debug.draw_string(waypoint.transform.location, 'O', draw_shadow=False,
                                        color=carla.Color(r=255, g=0, b=0), life_time=1.0,
                                        persistent_lines=True)
-            
-            next_point = waypoints[random.randint(0,min(len(waypoints)-1, 50))].transform
-            vehicle.set_transform(next_point)
-            my_location = next_point.location
-            #sleep(0.1)
-
-        """
-        while True:
-            control = agent.run_step()
-            #vehicle.apply_control(control)
-            
-            my_location = vehicle.get_location()
-            me2destination = my_location.distance(destination)
-            if me2destination < 10 :
-                destination = spawn_points[random.randint(0,len(spawn_points)-1)].location
-                agent.set_destination((destination.x,
-                                       destination.y,
-                                       destination.z))
-                print("destination change !!!")
-
-            trace_list = planner.trace_route(my_location, destination)
-            if len(trace_list) < 4:
-                continue
-            for (waypoint, road_option) in [trace_list[-1], trace_list[-2], trace_list[-3], trace_list[-4]]:
-                world.debug.draw_string(waypoint.transform.location, 'O', draw_shadow=False,
-                                                   color=carla.Color(r=255, g=0, b=0), life_time=1.0,
-                                                   persistent_lines=True)
-                
-            (waypoint, road_option) = trace_list[-1]
-            vehicle.set_transform(waypoint.transform)
-            sleep(0.5)
-
-            waypoints = agent._local_planner._waypoint_buffer
-            for waypoint in [waypoints[-1], waypoints[-2], waypoints[-3], waypoints[-4]]:
-                world.debug.draw_string(waypoint.transform.location, 'O', draw_shadow=False,
-                                        color=carla.Color(r=255, g=0, b=0), life_time=1.0,
-                                        persistent_lines=True)
-            
             """
-                
-        """
-        # Retrieve the closest waypoint.
-        waypoint = map.get_waypoint(vehicle.get_location())
-        
-        # Disable physics, in this example we're just teleporting the vehicle.
-        vehicle.set_simulate_physics(False)
-        
-        while True:
-            # Find next waypoint 2 meters ahead.
-            waypoint = map.get_waypoint(vehicle.get_location())
-            waypoints = waypoint.next(1.0)
             print(len(waypoints))
-            for waypoint in waypoints:
-                world.debug.draw_string(waypoint.transform.location, 'O', draw_shadow=False,
-                                        color=carla.Color(r=255, g=0, b=0), life_time=1.0,
-                                        persistent_lines=True)
-            # Teleport the vehicle.
-            vehicle.set_transform(waypoint.transform)
-            sleep(1)
-        """
+            next_point = waypoints[random.randint(0,min(len(waypoints)-1, 50))].transform
+            #vehicle.set_transform(next_point)
+            #my_location = next_point.location
+            
+            for waypoint in waypoints[5:min(len(waypoints)-1, 50)]:
+                box_point = carla.Location(waypoint.transform.location.x,
+                                           waypoint.transform.location.y,
+                                           waypoint.transform.location.z-0.4
+                                           )
+                box = carla.BoundingBox(box_point, carla.Vector3D(x=2,y=1.0,z=0.5))
+                rotation = carla.Rotation(pitch=waypoint.transform.rotation.pitch, 
+                                          yaw=waypoint.transform.rotation.yaw, 
+                                          roll=waypoint.transform.rotation.roll)
+                world.debug.draw_box(box=box, rotation=rotation, thickness=1.2)
+                
+            #box = carla.BoundingBox(my_location, carla.Vector3D(x=1,y=1,z=0.01))
+            #rotation = carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0)
+            #world.debug.draw_box(box=box, rotation=rotation, thickness=1)
+            sleep(0.3)
         
     finally:
-        pass
-        """
         print('destroying actors')
         for actor in actor_list:
             actor.destroy()
         actor_list = []
         print('done.')
-        """
         
 if __name__ == '__main__':
     main()
