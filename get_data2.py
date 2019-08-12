@@ -94,16 +94,16 @@ def add_semantic_camera_component(world, blueprint_library, vehicle):
 
 def deal_image(image):
     global flag, frame
-    image.save_to_disk('_output/%06d.png' % image.frame_number)
-    flag = True
     frame = image.frame_number
+    flag = True
+    image.save_to_disk('_output/%06d.png' % image.frame_number)
     
 def deal_image2(image):
     global flag, frame, ref_img
     ref_img = np.resize(np.array(image.raw_data), (600,800,4))
+    frame = image.frame_number
     flag = True
     image.save_to_disk('_output/%06d.png' % image.frame_number)
-    frame = image.frame_number
     
 def add_camera_component(world, blueprint_library, vehicle):
     global actor_list
@@ -252,9 +252,8 @@ def main():
                 print('my_location:' , my_location.x, my_location.y, my_location.z)
                 print('destination:', destination.x, destination.y, destination.z)
                 print('me2destination:', me2destination)
-                
-            next_point = waypoints[random.randint(0,min(len(waypoints)-1, 50))].transform
             
+            vehicle.set_transform(next_point)##########################
             camera.listen(lambda image: deal_image(image))
             while not flag:
                 sleep(0.001)
@@ -262,33 +261,36 @@ def main():
             flag = False
             
             get_instruct(waypoints)
-            
+            vehicle.set_transform(next_point)############################
             for waypoint in waypoints[0:min(len(waypoints)-1, 30)]:
                 box_point = carla.Location(waypoint.transform.location.x,
                                            waypoint.transform.location.y,
-                                           waypoint.transform.location.z-0.4
+                                           waypoint.transform.location.z-0.5
                                            )
-                box = carla.BoundingBox(box_point, carla.Vector3D(x=2,y=0.1,z=0.5))
+                box = carla.BoundingBox(box_point, carla.Vector3D(x=2,y=0.1,z=0.4))
                 rotation = carla.Rotation(pitch=waypoint.transform.rotation.pitch, 
                                           yaw=waypoint.transform.rotation.yaw, 
                                           roll=waypoint.transform.rotation.roll)
                 world.debug.draw_box(box=box, rotation=rotation, thickness=1.2, life_time=0)
             
+            vehicle.set_transform(next_point)############################
             sleep(0.3)
+            vehicle.set_transform(next_point)############################
             camera.listen(lambda image: deal_image2(image))
             while not flag:
                 sleep(0.001)
             camera.stop()
             flag = False
-            
+            vehicle.set_transform(next_point)############################
             #sleep(0.3)
             semantic_camera.listen(lambda image: save_semantic_img(image))
             while not semantic_flag:
                 sleep(0.01)
             semantic_camera.stop()
             semantic_flag = False
-            
-            sleep(2.0)
+            vehicle.set_transform(next_point)############################
+            sleep(3.0)
+            next_point = waypoints[random.randint(0,min(len(waypoints)-1, 50))].transform
         
     finally:
         print('destroying actors')
