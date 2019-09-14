@@ -20,7 +20,7 @@ CAMERA_TRANS = carla.Transform(
         location = carla.Location(x=1.5, y=0.0, z=2.4),
         rotation = carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0))
 
-OUTPUT_PATH = 'output6'
+OUTPUT_PATH = 'output'
 actor_list = []
 world = None
 

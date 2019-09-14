@@ -11,9 +11,9 @@ PORT = 2000
 DATASET_NUM = 10
 MAX_FRAMES = 5000 #max frmaes for each dataset
 # imgae must be small !!
-IMG_LENGTH = 320
-IMG_WIDTH = 240
-FOV = 90 # degree
+IMG_LENGTH = 640#320
+IMG_WIDTH = 480#240
+FOV = 120 # degree
 MAX_SPEED = 30 # km/h, slow down for better ctrl !
 TIMEOUT = 10.0 # s, connection timeout
 CAMERA_TRANS = carla.Transform(
@@ -121,18 +121,18 @@ def game_loop():
         depth_camera = add_depth_camera(blueprint_library, vehicle)
         semantic_camera = add_semantic_camera(blueprint_library, vehicle)
         
-        rgb_camera.listen(lambda image: get_rgb_img(image))
-        depth_camera.listen(lambda image: get_depth_img(image))
-        semantic_camera.listen(lambda image: get_semantic_img(image))
+        #rgb_camera.listen(lambda image: get_rgb_img(image))
+        #depth_camera.listen(lambda image: get_depth_img(image))
+        #semantic_camera.listen(lambda image: get_semantic_img(image))
 
         clock = pygame.time.Clock()
         weather = carla.WeatherParameters(
                 cloudyness=random.randint(0,80),#0-100
                 precipitation=0,#random.randint(0,20),#0-100
                 precipitation_deposits=0,#random.randint(0,20),#0-100
-                wind_intensity=random.randint(0,50),#0-100
-                sun_azimuth_angle=random.randint(60,90),#0-360
-                sun_altitude_angle=random.randint(60,90))#-90~90
+                wind_intensity=0,#random.randint(0,50),#0-100
+                sun_azimuth_angle=random.randint(30,120),#0-360
+                sun_altitude_angle=random.randint(30,90))#-90~90
         
         world.world.set_weather(weather)
          # put vehicle on starting point
